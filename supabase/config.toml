@@ -1,0 +1,5 @@
+project_id = "table-darcins-b2b"
+
+[functions.hermes-prospection]
+# Custom bearer-token authentication is implemented in the function and SQL.
+verify_jwt = false
