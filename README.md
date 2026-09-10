@@ -4,7 +4,7 @@ Interface Next.js **16.3.4**, React et Tailwind CSS **4.3.3**. Versions stables 
 
 ## Fonctionnement
 
-L’interface utilise Supabase Auth (Google), la base Postgres et ses règles RLS. Le compte Google autorisé est configuré côté serveur. Il n'y a aucun secret administrateur dans le navigateur.
+L’interface utilise Supabase Auth (lien par email), la base Postgres et ses règles RLS. L’email autorisé est configuré côté serveur. Il n'y a aucun secret administrateur dans le navigateur.
 
 Hermes reste sur le VPS. Il appelle l’Edge Function `hermes-prospection` avec une clé dédiée, révocable et limitée à 90 jours. Cette fonction exécute uniquement une liste définie d’actions ; elle n’offre aucun accès SQL à l’agent.
 
@@ -33,20 +33,19 @@ npm run build
 
 La première migration a été appliquée au projet `lxtigfcpdmjpthskuspm`. Les fichiers `supabase/migrations/` sont la référence : ne pas réappliquer la migration initiale au même projet. Les tests `supabase/tests/prospection.sql` créent des fixtures dans une transaction puis annulent toutes les écritures. Ils ne transmettent aucun mail.
 
-## Connexion Google
+## Connexion par email
 
-L’interface est prête pour Google, mais le fournisseur est encore désactivé dans Supabase au moment de la création du projet.
+La connexion Google a été retirée. Le formulaire envoie un lien à usage unique via Supabase Auth. La base vérifie que l’email du compte est confirmé et figure dans `private.authorized_emails`. Aucune identité Google ni métadonnée modifiable par l’utilisateur ne donne accès aux données.
 
-1. Dans Google Cloud, configurer un client OAuth de type **Application Web** et son écran de consentement. Si l’application est en mode test, ajouter le compte du propriétaire comme utilisateur de test.
-2. Origines JavaScript autorisées : `https://table-darcins-b2b.rttm-influenceur.chatgpt.site` et, pour le développement, `http://127.0.0.1:3000`.
-3. URI de redirection autorisée Google : `https://lxtigfcpdmjpthskuspm.supabase.co/auth/v1/callback`.
-4. Dans Supabase → Authentication → Sign In / Providers → Google, activer Google et saisir l’identifiant client et le secret **directement dans Supabase**.
-5. Dans Supabase → Authentication → URL Configuration, définir Site URL sur `https://table-darcins-b2b.rttm-influenceur.chatgpt.site/`. Ajouter cette même URL ainsi que `http://127.0.0.1:3000/` aux redirections autorisées.
-6. Se connecter avec le compte Google autorisé. L’email doit être vérifié et l’identité Google doit correspondre à l’email autorisé côté base.
+- Activer Email dans Supabase Authentication. Le premier lien peut créer le compte ; cela ne donne aucun accès au carnet sans autorisation côté base.
+- Définir Site URL sur `https://table-darcins-b2b.rttm-influenceur.chatgpt.site/` et autoriser cette URL ainsi que les URL locales utilisées dans les redirections.
+- Conserver le modèle email avec son lien `{{ .ConfirmationURL }}`. L’export statique utilise le flux implicite pour récupérer la session sans route serveur.
+- Vérifier la livraison à l’adresse autorisée : le service email par défaut de Supabase limite les destinataires aux membres de l’équipe du projet. Configurer un SMTP personnalisé si nécessaire.
+- L’interface impose une minute avant un nouvel envoi et affiche les erreurs du service. La connexion complète doit être validée en ouvrant le lien reçu dans la messagerie du titulaire.
 
-L’aperçu Sites est privé au propriétaire et demande aussi l'accès Sites. Google sécurise séparément les données Supabase. Une ouverture à d’autres personnes demande de configurer les deux niveaux d’accès.
+L’aperçu Sites reste privé au propriétaire et demande aussi l’accès Sites, indépendamment de l’authentification Supabase.
 
-Documentation : https://supabase.com/docs/guides/auth/social-login/auth-google
+Documentation : https://supabase.com/docs/guides/auth/auth-email-passwordless
 
 ## Installation Hermes
 
@@ -58,7 +57,7 @@ Les refus bloquent les nouveaux brouillons et annulent les messages non encore p
 
 ## Données et sécurité
 
-- Tables applicatives protégées par RLS et contrôle d’un compte Google autorisé côté base.
+- Tables applicatives protégées par RLS et contrôle d’un email confirmé et autorisé côté base.
 - Tables privées de clés et autorisations sans accès direct depuis le navigateur.
 - Secrets Hermes stockés uniquement sous forme d’empreinte SHA-256 en base.
 - RPC de l’agent réservée au serveur de la fonction ; pas d’appel direct avec la clé publique.
@@ -71,4 +70,4 @@ Le contrôle Supabase signale les tables du schéma `private` sans politique RLS
 
 ## À finaliser avant une campagne réelle
 
-Activer Google ; connecter le kit au VPS ; relier la messagerie du restaurant ; préciser les tarifs, capacités, menus, zone et critères de ciblage ; valider un test d’envoi et de réponse sur une adresse contrôlée. Aucun mail de prospection n'a été envoyé par cette tâche.
+Valider la réception du lien de connexion ; connecter le kit au VPS ; relier la messagerie du restaurant ; préciser les tarifs, capacités, menus, zone et critères de ciblage ; valider un test d’envoi et de réponse sur une adresse contrôlée. Aucun mail de prospection n'a été envoyé par cette tâche.

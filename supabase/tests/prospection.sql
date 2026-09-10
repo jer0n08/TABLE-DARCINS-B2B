@@ -1,11 +1,9 @@
--- Integration tests: all fixtures, Google identities and credentials are rolled back.
+-- Integration tests: all fixtures and credentials are rolled back.
 begin;
 do $$
 declare v_user uuid := gen_random_uuid();
 begin
   insert into auth.users(id,email,email_confirmed_at) values(v_user,'jerome.nguyen08@gmail.com',now());
-  insert into auth.identities(user_id,provider_id,provider,identity_data)
-    values(v_user,v_user::text,'google',jsonb_build_object('sub',v_user,'email','jerome.nguyen08@gmail.com','email_verified',true));
   perform set_config('request.jwt.claim.sub',v_user::text,true);
   if has_table_privilege('anon','public.prospects','select') then raise exception 'Anonymous read granted'; end if;
   if has_function_privilege('authenticated','public.hermes_call(text,text,jsonb,uuid)','execute') then raise exception 'Agent RPC exposed to browser'; end if;
@@ -15,7 +13,7 @@ set local role authenticated;
 do $$
 declare v_prospect uuid; v_message jsonb;
 begin
-  if not public.has_dashboard_access() then raise exception 'Authorized Google account rejected'; end if;
+  if not public.has_dashboard_access() then raise exception 'Authorized confirmed email rejected'; end if;
   insert into public.prospects(name,siret,city,email) values('Integration test','99999999999999','Bègles','test@example.invalid') returning id into v_prospect;
   perform set_config('test.prospect',v_prospect::text,true);
   perform set_config('test.token',public.manage_hermes('rotate')->>'token',true);
@@ -119,5 +117,5 @@ do $$ begin
   exception when insufficient_privilege then null; end;
 end; $$;
 reset role;
-select 'PASS: Google allowlist, RLS, agent isolation, token revocation, idempotency, SIRET deduplication, approval, single claim, sent confirmation, opt-out protection' as result;
+select 'PASS: email allowlist, RLS, agent isolation, token revocation, idempotency, SIRET deduplication, approval, single claim, sent confirmation, opt-out protection' as result;
 rollback;
